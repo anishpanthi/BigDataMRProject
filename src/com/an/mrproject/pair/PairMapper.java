@@ -1,88 +1,56 @@
 package com.an.mrproject.pair;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.Map.Entry;
 
 import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.mapreduce.Mapper;
 
-public class PairMapper extends Mapper<Object, Text, PairWritable, IntWritable> {
+public class PairMapper extends
+		Mapper<LongWritable, Text, PairWritable, IntWritable> {
 
-	Map<String, Map<String, Integer>> combiner = null;
+	private PairWritable pair = new PairWritable();
+	private MapWritable map = new MapWritable();
 
-	protected void setup(Context context) throws IOException,
-			InterruptedException {
-		combiner = new HashMap<>();
-	}
-
-	public void map(Object objKey, Text value, Context context)
+	@Override
+	public void map(LongWritable key, Text value, Context context)
 			throws IOException, InterruptedException {
-		String line = value.toString();
-		String data = line.substring(line.indexOf(" ") + 1, line.length());
+		String[] terms = value.toString().split("\\s+");
+		for (int i = 1; i < terms.length; i++) {
 
-		String[] values = data.split("\\s+");
+			for (int j = i + 1; j < terms.length && !terms[i].equals(terms[j]); j++) {
 
-		for (int i = 0; i < values.length - 1; i++) {
-			String[] neighbours = getNeighbours(i, values[i], values);
+				pair = new PairWritable(new Text(terms[i]), new Text(terms[j]));
+				IntWritable pairValue = map.get(pair) == null ? new IntWritable(
+						1) : new IntWritable(
+						(((IntWritable) map.get(pair)).get() + 1));
 
-			for (String neighbour : neighbours) {
-				if (neighbour == null) {
-					break;
-				}
-				String key = values[i];
+				map.put(pair, pairValue);
 
-				if (combiner.containsKey(key)) {
-					Map<String, Integer> items = combiner.get(key);
-					if (items.containsKey(neighbour)) {
-						items.put(neighbour, items.get(neighbour) + 1);
-					} else {
-						items.put(neighbour, 1);
-					}
-				} else {
-					Map<String, Integer> items = new HashMap<>();
-					items.put(neighbour, 1);
-					combiner.put(key, items);
-				}
+				pair = new PairWritable(new Text(terms[i]), new Text("*"));
+				IntWritable starValue = map.get(pair) == null ? new IntWritable(
+						1) : new IntWritable(
+						(((IntWritable) map.get(pair)).get() + 1));
+
+				map.put(pair, starValue);
 			}
 		}
 	}
 
+	@Override
 	protected void cleanup(Context context) throws IOException,
 			InterruptedException {
 
-		Set<String> keys = combiner.keySet();
+		for (Entry<Writable, Writable> entry : map.entrySet()) {
 
-		for (String key : keys) {
-			Map<String, Integer> pairs = combiner.get(key);
-			Set<String> values = pairs.keySet();
-			int count = 0;
-
-			for (String value : values) {
-				count += pairs.get(value);
-				context.write(new PairWritable(key, value), new IntWritable(
-						pairs.get(value)));
-			}
-			context.write(new PairWritable(key, "*"), new IntWritable(count));
+			PairWritable key = (PairWritable) entry.getKey();
+			IntWritable value = (IntWritable) entry.getValue();
+			context.write(key, value);
 		}
-	}
-
-	private String[] getNeighbours(int index, String item, String[] data) {
-
-		int length = data.length - (index + 1);
-		String[] neighbours = new String[length];
-
-		int j = 0;
-		for (int i = index + 1; i < data.length; i++) {
-			if (data[i].equals(item)) {
-				break;
-			}
-			neighbours[j++] = data[i];
-		}
-
-		return neighbours;
 	}
 
 }

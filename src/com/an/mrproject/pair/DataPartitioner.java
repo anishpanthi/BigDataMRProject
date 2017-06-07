@@ -6,20 +6,11 @@ import org.apache.hadoop.mapreduce.Partitioner;
 public class DataPartitioner extends Partitioner<PairWritable, IntWritable> {
 
 	@Override
-	public int getPartition(PairWritable key, IntWritable value, int task) {
-		// TODO Auto-generated method stub
-
-		int main = key.getX();
-
-		if (task == 0) {
+	public int getPartition(PairWritable key, IntWritable value,
+			int numPartitions) {
+		if (Integer.parseInt(key.getFirst().toString()) < 51)
 			return 0;
-		}
-
-		if (main < 25) {
-			return 0;
-		} else {
-			return 1;
-		}
+		else
+			return 1 % numPartitions;
 	}
-
 }
