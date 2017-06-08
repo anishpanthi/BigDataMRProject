@@ -15,13 +15,12 @@ public class PairReducer extends
 			Context context) throws IOException, InterruptedException {
 
 		int sum = sum(values);
-		// double d = 0d;
 
 		if (key.getSecond().toString().equals("*")) {
 			totalFrequency = sum;
 		} else {
-			context.write(key, new DoubleWritable(
-					(double) sum / totalFrequency));
+			context.write(key,
+					new DoubleWritable((double) sum / totalFrequency));
 		}
 	}
 
